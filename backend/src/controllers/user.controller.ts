@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { auth } from "../lib/auth.js";
+import { auth } from "../lib/auth.ts";
 import { fromNodeHeaders } from "better-auth/node";
 
 export const getMe = async (req: Request, res: Response) => {

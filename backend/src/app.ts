@@ -1,28 +1,25 @@
 import express from "express";
-import cors from "cors";
 import cookieParser from "cookie-parser";
-import { toNodeHandler, fromNodeHeaders } from "better-auth/node";
+import { toNodeHandler } from "better-auth/node";
 import { auth } from "./lib/auth.js";
-import authRouter from "./routes/auth.routes.ts"
+import cors from "cors"
+import userRouter from "./routes/user.routes.ts"
 const app = express();
+
+app.use(cookieParser());
+
+// Express v5
 
 app.use(
   cors({
     origin: "http://localhost:3000",
-    credentials: true,
+    credentials: true, // important if using cookies
   })
 );
-
-app.use(cookieParser());
-
-// Better Auth route FIRST
 app.all("/api/auth/*splat", toNodeHandler(auth));
+app.use("/api/user", userRouter);
 
-// Put express.json AFTER Better Auth route
+// JSON after Better Auth
 app.use(express.json());
-
-app.use("/api", authRouter);
-
 export default app;
-
 
