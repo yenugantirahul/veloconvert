@@ -2,8 +2,10 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import { toNodeHandler } from "better-auth/node";
 import { auth } from "./lib/auth.js";
-import cors from "cors"
-import userRouter from "./routes/user.routes.ts"
+import cors from "cors";
+import userRouter from "./routes/user.routes.ts";
+import jwt from "jsonwebtoken"; // Add JWT for session validation
+
 const app = express();
 
 app.use(cookieParser());
@@ -16,6 +18,9 @@ app.use(
     credentials: true, // important if using cookies
   })
 );
+
+// Middleware to protect routes
+
 app.all("/api/auth/*splat", toNodeHandler(auth));
 app.use("/api/user", userRouter);
 

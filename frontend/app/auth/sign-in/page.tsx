@@ -4,12 +4,17 @@ import { useState } from "react";
 import Link from "next/link";
 import AuthShell from "@/components/AuthShell";
 import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { authClient } from "../../lib/auth-client";
 export default function SignInPage() {
   const [email, setEmail] = useState<string>("");
   const [password, setPassowrd] = useState<string>("");
+  const searchParams = useSearchParams();
+   const callbackUrl = searchParams.get("callbackUrl") || "/";
+
   const router = useRouter();
    async function handleSubmit(e: React.FormEvent) {
+
       e.preventDefault();
   
       const { error } = await authClient.signIn.email({
@@ -21,7 +26,7 @@ export default function SignInPage() {
         return;
       }
   
-      router.push("/");
+      router.push(callbackUrl);
       router.refresh();
     }
   return (

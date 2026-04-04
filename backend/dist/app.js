@@ -11,6 +11,7 @@ app.use(cors({
     origin: "http://localhost:3000",
     credentials: true, // important if using cookies
 }));
+// Middleware to protect routes
 app.all("/api/auth/*splat", toNodeHandler(auth));
 app.use("/api/user", userRouter);
 // JSON after Better Auth
