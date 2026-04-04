@@ -3,13 +3,11 @@
 import AuthShell from "@/components/AuthShell";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSearchParams } from "next/navigation";
+import { redirect } from "next/navigation";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 
 import { authClient } from "../../lib/auth-client";
 export default function SignUpPage() {
-  const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/";
   const router = useRouter();
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
@@ -28,7 +26,6 @@ export default function SignUpPage() {
       return;
     }
 
-    router.push(callbackUrl);
     router.refresh();
   }
 
