@@ -1,0 +1,1 @@
+// Renamed middleware.ts to proxy.ts to align with Next.js 16.2.1 conventions.
