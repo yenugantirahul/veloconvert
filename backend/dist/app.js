@@ -8,7 +8,7 @@ const app = express();
 app.use(cookieParser());
 // Express v5
 app.use(cors({
-    origin: "http://localhost:3000",
+    origin: ["http://localhost:3000", "https://veloconvert.vercel.app"],
     credentials: true, // important if using cookies
 }));
 // Middleware to protect routes

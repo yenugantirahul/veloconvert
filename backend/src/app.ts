@@ -4,7 +4,6 @@ import { toNodeHandler } from "better-auth/node";
 import { auth } from "./lib/auth.js";
 import cors from "cors";
 import userRouter from "./routes/user.routes.ts";
-import jwt from "jsonwebtoken"; // Add JWT for session validation
 
 const app = express();
 
@@ -14,7 +13,7 @@ app.use(cookieParser());
 
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: ["http://localhost:3000", "https://veloconvert.vercel.app"],
     credentials: true, // important if using cookies
   })
 );
