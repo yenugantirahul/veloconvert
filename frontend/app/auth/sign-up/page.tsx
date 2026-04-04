@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import AuthShell from "@/components/AuthShell";
 import { useState } from "react";
 import { useRouter } from "next/navigation";

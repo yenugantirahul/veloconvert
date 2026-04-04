@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
 
-import Link from "next/link";
 import AuthShell from "@/components/AuthShell";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
@@ -85,7 +84,7 @@ export default function SignInPage() {
 
         <button
           type="submit"
-          className="h-12 w-full rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 text-sm font-semibold text-white transition hover:scale-[1.01] hover:shadow-lg hover:shadow-indigo-500/20"
+          className="h-12 w-full rounded-2xl bg-linear-to-r from-indigo-500 to-violet-500 text-sm font-semibold text-white transition hover:scale-[1.01] hover:shadow-lg hover:shadow-indigo-500/20"
         >
           Sign in
         </button>
