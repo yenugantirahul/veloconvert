@@ -19,7 +19,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
 export default function UploadPage() {
   const { data: session } = authClient.useSession();
   if(!session) {
-    redirect("/auth/sign-in")
+    redirect("/auth/login")
   }
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
