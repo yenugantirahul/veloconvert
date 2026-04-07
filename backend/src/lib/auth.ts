@@ -24,9 +24,18 @@ const trustedOrigins = [
   ...parseOrigins(process.env.CORS_ORIGIN),
 ].filter((origin): origin is string => Boolean(origin));
 
+const isProduction = process.env.NODE_ENV === "production";
+
 export const auth = betterAuth({
   baseURL: authBaseURL,
   trustedOrigins,
+  advanced: {
+    useSecureCookies: isProduction,
+    defaultCookieAttributes: {
+      sameSite: isProduction ? "none" : "lax",
+      secure: isProduction,
+    },
+  },
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),

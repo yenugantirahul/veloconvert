@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { redirect } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { authClient } from "../lib/auth-client";
 type UploadState = "idle" | "uploading" | "success" | "error";
 
@@ -17,10 +17,8 @@ const ALLOWED_TYPES = [
 const MAX_FILE_SIZE = 10 * 1024 * 1024; 
 
 export default function UploadPage() {
-  const { data: session } = authClient.useSession();
-  if(!session) {
-    redirect("/auth/login")
-  }
+  const router = useRouter();
+  const { data: session, isPending } = authClient.useSession();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [file, setFile] = useState<File | null>(null);
@@ -29,6 +27,22 @@ export default function UploadPage() {
   const [status, setStatus] = useState<UploadState>("idle");
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    if (!isPending && !session) {
+      router.replace("/auth/login");
+    }
+  }, [isPending, session, router]);
+
+  if (isPending || !session) {
+    return (
+      <main className="min-h-screen bg-zinc-950 text-white">
+        <div className="mx-auto max-w-5xl px-6 py-10">
+          <p className="text-sm text-zinc-400">Checking session...</p>
+        </div>
+      </main>
+    );
+  }
 
   const validateFile = (selectedFile: File) => {
     if (!ALLOWED_TYPES.includes(selectedFile.type)) {
@@ -127,7 +141,7 @@ export default function UploadPage() {
     const interval = simulateProgress();
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/upload`, {
+      const res = await fetch("/api/upload", {
         method: "POST",
         body: formData,
         credentials: "include",
