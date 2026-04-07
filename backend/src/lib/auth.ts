@@ -13,14 +13,14 @@ const parseOrigins = (value?: string) =>
 
 const authBaseURL =
   process.env.BETTER_AUTH_URL ||
-  "https://veloconvert.onrender.com" ||
   process.env.RENDER_EXTERNAL_URL ||
   "http://localhost:5000";
 
 const trustedOrigins = [
   "http://localhost:3000",
   "https://veloconvert.vercel.app",
-  process.env.FRONTEND_URL,
+  "https://www.veloconvert.vercel.app",
+  ...parseOrigins(process.env.FRONTEND_URL),
   ...parseOrigins(process.env.CORS_ORIGIN),
 ].filter((origin): origin is string => Boolean(origin));
 

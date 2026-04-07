@@ -21,7 +21,8 @@ const parseOrigins = (value?: string) =>
 const corsOrigins = [
   "http://localhost:3000",
   "https://veloconvert.vercel.app",
-  process.env.FRONTEND_URL,
+  "https://www.veloconvert.vercel.app",
+  ...parseOrigins(process.env.FRONTEND_URL),
   ...parseOrigins(process.env.CORS_ORIGIN),
 ].filter((origin): origin is string => Boolean(origin));
 

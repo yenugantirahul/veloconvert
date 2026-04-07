@@ -12,20 +12,33 @@ export default function SignUpPage() {
   const [password, setPassword] = useState<string>("");
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [name, setName] = useState<string>("");
+  const [errorMessage, setErrorMessage] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setErrorMessage("");
+    setIsSubmitting(true);
 
-    const { error } = await authClient.signUp.email({
-      email,
-      password,
-      name,
-    });
+    try {
+      const { error } = await authClient.signUp.email({
+        email,
+        password,
+        name,
+      });
 
-    if (error) {
-      return;
+      if (error) {
+        setErrorMessage(error.message || "Unable to create account. Please try again.");
+        return;
+      }
+
+      router.push("/");
+      router.refresh();
+    } catch {
+      setErrorMessage("Network issue while creating account. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    router.refresh();
   }
 
   return (
@@ -92,10 +105,17 @@ export default function SignUpPage() {
 
         <button
           type="submit"
+          disabled={isSubmitting}
           className="h-12 w-full rounded-2xl bg-linear-to-r from-indigo-500 to-violet-500 text-sm font-semibold text-white transition hover:scale-[1.01] hover:shadow-lg hover:shadow-indigo-500/20"
         >
-          Create account
+          {isSubmitting ? "Creating account..." : "Create account"}
         </button>
+
+        {errorMessage && (
+          <p className="rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {errorMessage}
+          </p>
+        )}
 
         <div className="relative py-1 text-center">
           <div className="absolute inset-0 flex items-center">
