@@ -10,13 +10,28 @@ import {  uploadFileController } from "./controllers/upload.controller.ts";
 
 const app = express();
 
+const parseOrigins = (value?: string) =>
+  value
+    ? value
+        .split(",")
+        .map((origin) => origin.trim())
+        .filter(Boolean)
+    : [];
+
+const corsOrigins = [
+  "http://localhost:3000",
+  "https://veloconvert.vercel.app",
+  process.env.FRONTEND_URL,
+  ...parseOrigins(process.env.CORS_ORIGIN),
+].filter((origin): origin is string => Boolean(origin));
+
 app.use(cookieParser());
 
 // Express v5
 
 app.use(
   cors({
-    origin: ["http://localhost:3000", "https://veloconvert.vercel.app"],
+    origin: corsOrigins,
     credentials: true, // important if using cookies
   }),
 );
