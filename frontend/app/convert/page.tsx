@@ -119,7 +119,7 @@ export default function UploadPage() {
     setStatus("uploading");
     setMessage("");
     setProgress(0);
-
+    
     const formData = new FormData();
     formData.append("file", file);
     formData.append("targetFormat", targetFormat);

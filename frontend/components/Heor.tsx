@@ -30,7 +30,7 @@ export default function HeroSection() {
 
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link
-              href="/auth/sign-up"
+              href="/auth/signup"
               className="inline-flex h-12 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-6 text-sm font-semibold text-white transition hover:scale-[1.02] hover:shadow-lg hover:shadow-indigo-500/20 sm:w-auto"
             >
               Get Started

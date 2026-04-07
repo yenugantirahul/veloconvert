@@ -55,14 +55,14 @@ export default function Navbar() {
           ) : (
             <>
               <Link
-                href="/auth/sign-in"
+                href="/auth/login"
                 className="rounded-2xl border border-white/10 bg-white/5 px-5 py-2 text-sm text-white hover:bg-white/10"
               >
                 Sign In
               </Link>
 
               <Link
-                href="/auth/sign-up"
+                href="/auth/signup"
                 className="rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-500 px-5 py-2 text-sm font-semibold text-white"
               >
                 Get Started
@@ -106,11 +106,11 @@ export default function Navbar() {
                 </>
               ) : (
                 <>
-                  <Link href="/auth/sign-in" onClick={() => setOpen(false)}>
+                  <Link href="/auth/login" onClick={() => setOpen(false)}>
                     Sign In
                   </Link>
 
-                  <Link href="/auth/sign-up" onClick={() => setOpen(false)}>
+                  <Link href="/auth/signup" onClick={() => setOpen(false)}>
                     Get Started
                   </Link>
                 </>

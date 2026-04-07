@@ -72,12 +72,32 @@ model Verification {
   @@index([identifier])
   @@map("verification")
 }
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
 model Job {
-  id      String @id @default(uuid())
+  id            String   @id @default(uuid())
 
-  userId  String
-  user    User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  inputUrl      String   
+  outputUrl     String?  
+
+  inputFormat   String
+  outputFormat  String
+
+  status        JobStatus @default(PENDING)
+
+  errorMessage  String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([userId])
+  @@index([status]) // important for workers
   @@map("job")
 }

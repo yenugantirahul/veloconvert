@@ -4,6 +4,8 @@ import { toNodeHandler } from "better-auth/node";
 import { auth } from "./lib/auth.js";
 import cors from "cors";
 import userRouter from "./routes/user.routes.js";
+import upload from "./middlewares/upload.middleware.js";
+import { uploadFileController } from "./controllers/upload.controller.js";
 const app = express();
 app.use(cookieParser());
 // Express v5
@@ -14,6 +16,7 @@ app.use(cors({
 // Middleware to protect routes
 app.all("/api/auth/*splat", toNodeHandler(auth));
 app.use("/api/user", userRouter);
+app.use("/api/upload", upload.single("file"), uploadFileController);
 // JSON after Better Auth
 app.use(express.json());
 export default app;
