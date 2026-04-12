@@ -15,6 +15,8 @@ const ALLOWED_TYPES = [
 ];
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL || "https://veloconvert.onrender.com";
 
 export default function UploadPage() {
   const router = useRouter();
@@ -126,7 +128,7 @@ export default function UploadPage() {
 
   const startPolling = (jobId: string) => {
     const interval = setInterval(async () => {
-      const res = await fetch(`/api/jobs/${jobId}`, {
+      const res = await fetch(`${BACKEND_URL}/api/jobs/${jobId}`, {
         credentials: "include",
       });
 
@@ -166,7 +168,7 @@ export default function UploadPage() {
     const interval = simulateProgress();
 
     try {
-      const res = await fetch("/api/upload", {
+      const res = await fetch(`${BACKEND_URL}/api/upload`, {
         method: "POST",
         body: formData,
         credentials: "include",
