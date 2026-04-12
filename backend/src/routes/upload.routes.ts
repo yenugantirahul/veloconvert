@@ -6,31 +6,35 @@ const router = Router();
 
 const uploadSingle = upload.single("file");
 
-router.post("/", (req, res, next) => {
-	uploadSingle(req, res, (err: any) => {
-		if (err instanceof multer.MulterError) {
-			if (err.code === "LIMIT_FILE_SIZE") {
-				return res.status(413).json({
-					success: false,
-					message: "File is too large",
-				});
-			}
+router.post(
+  "/",
+  (req, res, next) => {
+    uploadSingle(req, res, (err: any) => {
+      if (err instanceof multer.MulterError) {
+        if (err.code === "LIMIT_FILE_SIZE") {
+          return res.status(413).json({
+            success: false,
+            message: "File is too large",
+          });
+        }
 
-			return res.status(400).json({
-				success: false,
-				message: err.message,
-			});
-		}
+        return res.status(400).json({
+          success: false,
+          message: err.message,
+        });
+      }
 
-		if (err) {
-			return res.status(415).json({
-				success: false,
-				message: err.message || "Invalid upload",
-			});
-		}
+      if (err) {
+        return res.status(415).json({
+          success: false,
+          message: err.message || "Invalid upload",
+        });
+      }
 
-		next();
-	});
-}, uploadFileController);
+      next();
+    });
+  },
+  uploadFileController,
+);
 
 export default router;

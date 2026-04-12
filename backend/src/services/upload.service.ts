@@ -1,4 +1,5 @@
-import { v2 as cloudinary, type UploadApiResponse } from "cloudinary";
+import type { UploadApiResponse } from "cloudinary";
+import cloudinary from "../config/cloudinary.ts";
 
 export const uploadToCloudinary = async (
   localFilePath: string,
