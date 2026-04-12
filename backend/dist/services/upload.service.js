@@ -1,4 +1,4 @@
-import { v2 as cloudinary } from "cloudinary";
+import cloudinary from "../config/cloudinary.js";
 export const uploadToCloudinary = async (localFilePath, originalName, folder) => {
     const publicIdBase = originalName.split(".")[0]?.replace(/[^a-zA-Z0-9_-]/g, "_");
     return new Promise((resolve, reject) => {
