@@ -1,5 +1,6 @@
 import "dotenv/config";
 import app from "./app.js";
+import "./wrokers/filconversionWorker.ts";
 
 const PORT = Number(process.env.PORT) || 4000;
 

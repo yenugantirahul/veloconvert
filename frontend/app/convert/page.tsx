@@ -14,7 +14,7 @@ const ALLOWED_TYPES = [
   "text/plain",
 ];
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; 
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 export default function UploadPage() {
   const router = useRouter();
@@ -22,7 +22,8 @@ export default function UploadPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [file, setFile] = useState<File | null>(null);
-  const [dragActive, setDragActive] = useState(false);
+  const [dragActive, setDragActive] = useState<boolean>(false);
+  const [downloadUrl, setDownloadUrl] = useState<string>("");
   const [targetFormat, setTargetFormat] = useState("pdf");
   const [status, setStatus] = useState<UploadState>("idle");
   const [progress, setProgress] = useState(0);
@@ -123,6 +124,30 @@ export default function UploadPage() {
     return interval;
   };
 
+  const startPolling = (jobId: string) => {
+    const interval = setInterval(async () => {
+      const res = await fetch(`/api/jobs/${jobId}`, {
+        credentials: "include",
+      });
+
+      const contentType = res.headers.get("content-type") || "";
+      if (!res.ok || !contentType.includes("application/json")) {
+        return;
+      }
+
+      const data = await res.json();
+
+      if (data.status === "COMPLETED") {
+        clearInterval(interval);
+        setDownloadUrl(data.outputUrl);
+      }
+
+      if (data.status === "failed") {
+        clearInterval(interval);
+        alert("Conversion failed");
+      }
+    }, 3000);
+  };
   const handleUpload = async () => {
     if (!file) {
       setStatus("error");
@@ -133,7 +158,7 @@ export default function UploadPage() {
     setStatus("uploading");
     setMessage("");
     setProgress(0);
-    
+
     const formData = new FormData();
     formData.append("file", file);
     formData.append("targetFormat", targetFormat);
@@ -147,20 +172,29 @@ export default function UploadPage() {
         credentials: "include",
       });
 
+      const payload = await res.json().catch(() => null);
+
       clearInterval(interval);
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => null);
-        throw new Error(errorData?.message || "Upload failed.");
+      if (!res.ok || payload?.success === false) {
+        throw new Error(payload?.message || "Upload failed.");
       }
 
       setProgress(100);
       setStatus("success");
-      setMessage("File uploaded successfully. Conversion job created.");
+      setMessage(
+        payload?.message ||
+          "File uploaded successfully. Conversion job created.",
+      );
+
+      startPolling(payload.data.job.id);
+      console.log(downloadUrl);
     } catch (error) {
       clearInterval(interval);
       setStatus("error");
-      setMessage(error instanceof Error ? error.message : "Something went wrong.");
+      setMessage(
+        error instanceof Error ? error.message : "Something went wrong.",
+      );
       setProgress(0);
     }
   };
@@ -177,7 +211,8 @@ export default function UploadPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight">Upload File</h1>
           <p className="mt-2 text-sm text-zinc-400">
-            Upload your file, choose the target format, and start the conversion job.
+            Upload your file, choose the target format, and start the conversion
+            job.
           </p>
         </div>
 
@@ -194,9 +229,12 @@ export default function UploadPage() {
               }`}
             >
               <div className="mb-4 text-4xl">📁</div>
-              <h2 className="text-xl font-semibold">Drag & drop your file here</h2>
+              <h2 className="text-xl font-semibold">
+                Drag & drop your file here
+              </h2>
               <p className="mt-2 max-w-md text-sm text-zinc-400">
-                Supported: PDF, DOC, DOCX, PNG, JPG, TXT. Maximum file size: 10 MB.
+                Supported: PDF, DOC, DOCX, PNG, JPG, TXT. Maximum file size: 10
+                MB.
               </p>
 
               <button
@@ -220,7 +258,8 @@ export default function UploadPage() {
                   <div>
                     <p className="font-medium">{file.name}</p>
                     <p className="mt-1 text-sm text-zinc-400">
-                      {file.type || "Unknown type"} • {formatFileSize(file.size)}
+                      {file.type || "Unknown type"} •{" "}
+                      {formatFileSize(file.size)}
                     </p>
                   </div>
 
@@ -272,8 +311,8 @@ export default function UploadPage() {
                   status === "success"
                     ? "border border-emerald-700 bg-emerald-500/10 text-emerald-300"
                     : status === "error"
-                    ? "border border-red-700 bg-red-500/10 text-red-300"
-                    : "border border-zinc-700 bg-zinc-800 text-zinc-300"
+                      ? "border border-red-700 bg-red-500/10 text-red-300"
+                      : "border border-zinc-700 bg-zinc-800 text-zinc-300"
                 }`}
               >
                 {message}
@@ -317,7 +356,8 @@ export default function UploadPage() {
               <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-4">
                 <p className="font-medium">4. Output ready</p>
                 <p className="mt-1 text-sm text-zinc-400">
-                  Once processing is complete, the converted file will be available for download.
+                  Once processing is complete, the converted file will be
+                  available for download.
                 </p>
               </div>
             </div>

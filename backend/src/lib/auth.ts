@@ -19,7 +19,6 @@ const authBaseURL =
 const trustedOrigins = [
   "http://localhost:3000",
   "https://veloconvert.vercel.app",
-  "https://www.veloconvert.vercel.app",
   ...parseOrigins(process.env.FRONTEND_URL),
   ...parseOrigins(process.env.CORS_ORIGIN),
 ].filter((origin): origin is string => Boolean(origin));
@@ -36,6 +35,7 @@ export const auth = betterAuth({
       secure: isProduction,
     },
   },
+
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),

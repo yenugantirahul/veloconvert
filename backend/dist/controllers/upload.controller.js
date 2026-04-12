@@ -1,30 +1,96 @@
-import { uploadToCloudinary } from "../lib/uploadToCloudinary.js";
+import { uploadToCloudinary } from "../services/upload.service.js";
+import { prisma } from "../lib/prisma.js";
+import { auth } from "../lib/auth.js";
+import { fromNodeHeaders } from "better-auth/node";
+import fileQueue from "../config/upstash.js";
+import { unlink } from "fs/promises";
 export const uploadFileController = async (req, res) => {
     try {
-        if (!req.file) {
-            return res.status(400).json({
+        const session = await auth.api.getSession({
+            headers: fromNodeHeaders(req.headers),
+        });
+        if (!session?.user?.id) {
+            return res.status(401).json({
                 success: false,
-                message: "No file uploaded",
+                message: "Unauthorized",
             });
         }
-        const result = await uploadToCloudinary(req.file.buffer, "veloconvert/input");
-        return res.status(200).json({
-            success: true,
-            message: "File uploaded successfully",
+        const userId = session.user.id;
+        const { targetFormat } = req.body;
+        if (!req.file) {
+            return res
+                .status(400)
+                .json({ success: false, message: "No file uploaded" });
+        }
+        if (!targetFormat) {
+            return res.status(400).json({
+                success: false,
+                message: "targetFormat is required",
+            });
+        }
+        const tempFilePath = req.file.path;
+        // Upload to Cloudinary from disk using chunked transfer for large files.
+        const uploadFile = await uploadToCloudinary(tempFilePath, req.file.originalname, "uploads");
+        try {
+            await unlink(tempFilePath);
+        }
+        catch {
+            // Best-effort cleanup if file was already removed.
+        }
+        const uploadJob = await prisma.job.create({
             data: {
-                publicId: result.public_id,
-                url: result.secure_url,
-                originalName: req.file.originalname,
-                resourceType: result.resource_type,
-                format: result.format,
+                user: {
+                    connect: {
+                        id: userId,
+                    },
+                },
+                inputUrl: uploadFile?.secure_url,
+                inputFormat: req.file.originalname.split(".").pop() || "unknown",
+                outputFormat: targetFormat,
+                status: "PENDING",
+            },
+        });
+        let queueAccepted = true;
+        try {
+            await fileQueue.add("convert", {
+                jobId: uploadJob.id,
+                userId,
+                inputUrl: uploadJob.inputUrl,
+                inputFormat: uploadJob.inputFormat,
+                outputFormat: uploadJob.outputFormat,
+            }, {
+                removeOnComplete: true,
+                removeOnFail: false,
+            });
+        }
+        catch {
+            queueAccepted = false;
+        }
+        return res.status(queueAccepted ? 200 : 202).json({
+            message: queueAccepted
+                ? "Uploaded successfully. Conversion job queued."
+                : "File uploaded successfully, but conversion queue is temporarily unavailable.",
+            success: true,
+            data: {
+                upload: uploadFile,
+                job: uploadJob,
+                queueAccepted,
             },
         });
     }
     catch (error) {
-        console.error("Cloudinary upload error:", error);
+        if (req.file?.path) {
+            try {
+                await unlink(req.file.path);
+            }
+            catch {
+                // Best-effort cleanup.
+            }
+        }
         return res.status(500).json({
+            message: "File Upload Error",
             success: false,
-            message: "Failed to upload file",
+            error: error.message,
         });
     }
 };

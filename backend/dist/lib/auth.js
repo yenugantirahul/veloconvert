@@ -14,7 +14,6 @@ const authBaseURL = process.env.BETTER_AUTH_URL ||
 const trustedOrigins = [
     "http://localhost:3000",
     "https://veloconvert.vercel.app",
-    "https://www.veloconvert.vercel.app",
     ...parseOrigins(process.env.FRONTEND_URL),
     ...parseOrigins(process.env.CORS_ORIGIN),
 ].filter((origin) => Boolean(origin));

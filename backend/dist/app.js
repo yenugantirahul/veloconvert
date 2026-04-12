@@ -4,8 +4,8 @@ import { toNodeHandler } from "better-auth/node";
 import { auth } from "./lib/auth.js";
 import cors from "cors";
 import userRouter from "./routes/user.routes.js";
-import upload from "./middlewares/upload.middleware.js";
-import { uploadFileController } from "./controllers/upload.controller.js";
+import uploadRouter from "./routes/upload.routes.js";
+import jobRouter from "./routes/jobs.routes.js";
 const app = express();
 const parseOrigins = (value) => value
     ? value
@@ -16,7 +16,6 @@ const parseOrigins = (value) => value
 const corsOrigins = [
     "http://localhost:3000",
     "https://veloconvert.vercel.app",
-    "https://www.veloconvert.vercel.app",
     ...parseOrigins(process.env.FRONTEND_URL),
     ...parseOrigins(process.env.CORS_ORIGIN),
 ].filter((origin) => Boolean(origin));
@@ -29,7 +28,8 @@ app.use(cors({
 // Middleware to protect routes
 app.all("/api/auth/*splat", toNodeHandler(auth));
 app.use("/api/user", userRouter);
-app.use("/api/upload", upload.single("file"), uploadFileController);
+app.use("/api/upload", uploadRouter);
+app.use("/api/jobs", jobRouter);
 // JSON after Better Auth
 app.use(express.json());
 export default app;
