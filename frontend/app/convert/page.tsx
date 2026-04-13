@@ -15,7 +15,7 @@ const ALLOWED_TYPES = [
 ];
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const API_BASE_PATH = "/api";
+const API_BASE_PATH = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 export default function UploadPage() {
   const router = useRouter();
@@ -127,7 +127,7 @@ export default function UploadPage() {
 
   const startPolling = (jobId: string) => {
     const interval = setInterval(async () => {
-      const res = await fetch(`https://veloconvert.onrender.com/api/jobs/${jobId}`, {
+      const res = await fetch(`${API_BASE_PATH}/api/jobs/${jobId}`, {
         credentials: "include",
       });
 
@@ -167,16 +167,10 @@ export default function UploadPage() {
     const interval = simulateProgress();
 
     try {
-      const headers: HeadersInit = {
-        // Explicitly add auth header if session token is available
-        "X-Session-User": session?.user?.id || "",
-      };
-
-      const res = await fetch(`https://veloconvert.onrender.com/api/upload`, {
+      const res = await fetch(`${API_BASE_PATH}/api/upload`, {
         method: "POST",
         body: formData,
         credentials: "include",
-        headers,
       });
 
       const payload = await res.json().catch(() => null);
