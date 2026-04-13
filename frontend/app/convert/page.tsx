@@ -15,8 +15,7 @@ const ALLOWED_TYPES = [
 ];
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const BACKEND_URL =
-  process.env.NEXT_PUBLIC_BACKEND_URL || "https://veloconvert.onrender.com";
+const API_BASE_PATH = "/api";
 
 export default function UploadPage() {
   const router = useRouter();
@@ -128,7 +127,7 @@ export default function UploadPage() {
 
   const startPolling = (jobId: string) => {
     const interval = setInterval(async () => {
-      const res = await fetch(`${BACKEND_URL}/api/jobs/${jobId}`, {
+      const res = await fetch(`${API_BASE_PATH}/jobs/${jobId}`, {
         credentials: "include",
       });
 
@@ -168,15 +167,25 @@ export default function UploadPage() {
     const interval = simulateProgress();
 
     try {
-      const res = await fetch(`${BACKEND_URL}/api/upload`, {
+      const headers: HeadersInit = {
+        // Explicitly add auth header if session token is available
+        "X-Session-User": session?.user?.id || "",
+      };
+
+      const res = await fetch(`${API_BASE_PATH}/upload`, {
         method: "POST",
         body: formData,
         credentials: "include",
+        headers,
       });
 
       const payload = await res.json().catch(() => null);
 
       clearInterval(interval);
+
+      if (res.status === 401) {
+        throw new Error("Session expired. Please sign in again.");
+      }
 
       if (!res.ok || payload?.success === false) {
         throw new Error(payload?.message || "Upload failed.");
