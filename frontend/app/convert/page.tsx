@@ -127,7 +127,7 @@ export default function UploadPage() {
 
   const startPolling = (jobId: string) => {
     const interval = setInterval(async () => {
-      const res = await fetch(`${API_BASE_PATH}/jobs/${jobId}`, {
+      const res = await fetch(`https://veloconvert.onrender.com/api/jobs/${jobId}`, {
         credentials: "include",
       });
 
@@ -172,7 +172,7 @@ export default function UploadPage() {
         "X-Session-User": session?.user?.id || "",
       };
 
-      const res = await fetch(`${API_BASE_PATH}/upload`, {
+      const res = await fetch(`https://veloconvert.onrender.com/api/upload`, {
         method: "POST",
         body: formData,
         credentials: "include",

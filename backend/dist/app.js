@@ -24,6 +24,8 @@ app.use(cookieParser());
 app.use(cors({
     origin: corsOrigins,
     credentials: true, // important if using cookies
+    allowedHeaders: ["Content-Type", "Authorization"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 }));
 // Middleware to protect routes
 app.all("/api/auth/*splat", toNodeHandler(auth));
