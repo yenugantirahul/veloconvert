@@ -97,6 +97,8 @@ export const uploadFileController = async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
+    console.error("uploadFileController error:", error);
+
     if (req.file?.path) {
       try {
         await unlink(req.file.path);

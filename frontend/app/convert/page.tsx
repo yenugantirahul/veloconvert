@@ -15,7 +15,8 @@ const ALLOWED_TYPES = [
 ];
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const API_BASE_PATH = "/api";
+const API_BASE_PATH =
+  process.env.NEXT_PUBLIC_BACKEND_URL || "https://veloconvert.onrender.com";
 
 export default function UploadPage() {
   const router = useRouter();
@@ -127,7 +128,7 @@ export default function UploadPage() {
 
   const startPolling = (jobId: string) => {
     const interval = setInterval(async () => {
-      const res = await fetch(`${API_BASE_PATH}/jobs/${jobId}`, {
+      const res = await fetch(`${API_BASE_PATH}/api/jobs/${jobId}`, {
         credentials: "include",
       });
 
@@ -167,7 +168,7 @@ export default function UploadPage() {
     const interval = simulateProgress();
 
     try {
-      const res = await fetch(`${API_BASE_PATH}/upload`, {
+      const res = await fetch(`${API_BASE_PATH}/api/upload`, {
         method: "POST",
         body: formData,
         credentials: "include",
@@ -182,7 +183,7 @@ export default function UploadPage() {
       }
 
       if (!res.ok || payload?.success === false) {
-        throw new Error(payload?.message || "Upload failed.");
+        throw new Error(payload?.error || payload?.message || "Upload failed.");
       }
 
       setProgress(100);
