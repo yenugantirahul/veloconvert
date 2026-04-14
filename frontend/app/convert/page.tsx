@@ -15,7 +15,7 @@ const ALLOWED_TYPES = [
 ];
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const API_BASE_PATH = process.env.NEXT_PUBLIC_BACKEND_URL;
+const API_BASE_PATH = "/api";
 
 export default function UploadPage() {
   const router = useRouter();
@@ -127,7 +127,7 @@ export default function UploadPage() {
 
   const startPolling = (jobId: string) => {
     const interval = setInterval(async () => {
-      const res = await fetch(`${API_BASE_PATH}/api/jobs/${jobId}`, {
+      const res = await fetch(`${API_BASE_PATH}/jobs/${jobId}`, {
         credentials: "include",
       });
 
@@ -167,7 +167,7 @@ export default function UploadPage() {
     const interval = simulateProgress();
 
     try {
-      const res = await fetch(`${API_BASE_PATH}/api/upload`, {
+      const res = await fetch(`${API_BASE_PATH}/upload`, {
         method: "POST",
         body: formData,
         credentials: "include",
@@ -227,7 +227,7 @@ export default function UploadPage() {
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
-              className={`flex min-h-[260px] flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 text-center transition ${
+              className={`flex min-h-65 flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 text-center transition ${
                 dragActive
                   ? "border-indigo-400 bg-indigo-500/10"
                   : "border-zinc-700 bg-zinc-950/40"
