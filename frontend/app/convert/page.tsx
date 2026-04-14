@@ -16,7 +16,7 @@ const ALLOWED_TYPES = [
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const API_BASE_PATH =
-  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+  process.env.NEXT_PUBLIC_BACKEND_URL || "https://veloconvert.onrender.com";
 
 export default function UploadPage() {
   const router = useRouter();
