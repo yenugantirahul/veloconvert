@@ -36,12 +36,13 @@ app.use(
   }),
 );
 
+// Parse JSON bodies before routes
+app.use(express.json());
+
 // Middleware to protect routes
 
 app.all("/api/auth/*splat", toNodeHandler(auth));
 app.use("/api/user", userRouter);
 app.use("/api/upload", uploadRouter);
 app.use("/api/jobs", jobRouter);
-// JSON after Better Auth
-app.use(express.json());
 export default app;
