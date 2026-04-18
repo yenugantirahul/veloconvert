@@ -79,6 +79,13 @@ export const uploadFileController = async (req, res) => {
         });
     }
     catch (error) {
+        const errorMessage = error?.message || "Unknown error";
+        const errorStack = error?.stack || "";
+        console.error("uploadFileController error:", {
+            message: errorMessage,
+            stack: errorStack,
+            error: error,
+        });
         if (req.file?.path) {
             try {
                 await unlink(req.file.path);
@@ -90,7 +97,7 @@ export const uploadFileController = async (req, res) => {
         return res.status(500).json({
             message: "File Upload Error",
             success: false,
-            error: error.message,
+            error: errorMessage,
         });
     }
 };

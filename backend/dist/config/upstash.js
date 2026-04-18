@@ -2,6 +2,7 @@ import { Queue } from "bullmq";
 export const bullMqConnection = {
     host: process.env.UPSTASH_REDIS_ENDPOINT,
     port: Number(process.env.UPSTASH_REDIS_PORT || 6379),
+    username: "default",
     password: process.env.UPSTASH_REDIS_PASSWORD,
     tls: {},
 };

@@ -15,8 +15,7 @@ const ALLOWED_TYPES = [
 ];
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const API_BASE_PATH =
-  process.env.NEXT_PUBLIC_BACKEND_URL || "https://veloconvert.onrender.com";
+const API_BASE_PATH = process.env.NEXT_PUBLIC_BACKEND_URL || "";
 
 export default function UploadPage() {
   const router = useRouter();
@@ -111,6 +110,26 @@ export default function UploadPage() {
       fileInputRef.current.value = "";
     }
   };
+  const handleDownload = async () => {
+  try {
+    const response = await fetch(downloadUrl);
+    if (!response.ok) throw new Error("Failed to fetch file");
+
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = "converted-file.pdf"; // correct extension
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    window.URL.revokeObjectURL(blobUrl);
+  } catch (err) {
+    console.error(err);
+  }
+};
 
   const simulateProgress = () => {
     let current = 0;
@@ -138,13 +157,13 @@ export default function UploadPage() {
       }
 
       const data = await res.json();
-
-      if (data.status === "COMPLETED") {
+      console.log(data.status);
+      if (data.status === "COMPLETED" || data.status === "FAILED") {
         clearInterval(interval);
         setDownloadUrl(data.outputUrl);
       }
 
-      if (data.status === "failed") {
+      if (data.status === "FAILED") {
         clearInterval(interval);
         alert("Conversion failed");
       }
@@ -194,7 +213,7 @@ export default function UploadPage() {
       );
 
       startPolling(payload.data.job.id);
-      console.log(downloadUrl);
+      console.log("Download URL: " + downloadUrl);
     } catch (error) {
       clearInterval(interval);
       setStatus("error");
@@ -369,6 +388,18 @@ export default function UploadPage() {
             </div>
           </aside>
         </div>
+
+        {downloadUrl && (
+          <div className="mt-6">
+            <h2 className="text-xl font-semibold">Download Your File</h2>
+            <button
+              onClick={handleDownload}
+              className="mt-4 inline-block rounded-xl bg-emerald-500 px-5 py-3 font-medium text-white transition hover:bg-emerald-400"
+            >
+              Download Converted File
+            </button>
+          </div>
+        )}
       </div>
     </main>
   );
