@@ -2,16 +2,23 @@
 
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function ConvertPage() {
+  const { isSignedIn, isLoaded } = useUser();
   const router = useRouter();
-  const { isSignedIn } = useUser();
-  if (!isSignedIn) {
-    router.push("/auth/login")
-  }
   const [file, setFile] = useState<File | null>(null);
   const [quality, setQuality] = useState("medium");
+
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      router.push("/auth/login");
+    }
+  }, [isSignedIn, isLoaded, router]);
+
+
+  // Optional: prevent flash
+  if (!isSignedIn) return null;
 
   return (
     <div className="min-h-screen bg-[#131315] px-6 py-28 text-[#e5e1e4]">

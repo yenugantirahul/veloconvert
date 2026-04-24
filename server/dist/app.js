@@ -6,11 +6,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const express_2 = require("@clerk/express");
+const jobs_routes_1 = __importDefault(require("./routes/jobs.routes"));
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
 app.use(express_1.default.json());
 app.use((0, express_2.clerkMiddleware)());
-app.get("/", (req, res) => {
-    res.send("Backend is running");
-});
+app.use("/api/jobs", jobs_routes_1.default);
 exports.default = app;
