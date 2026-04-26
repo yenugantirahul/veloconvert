@@ -196,7 +196,7 @@ const compressWorker = new Worker(
 
 console.log("Worker initialized for queue: compress");
 
-compressWorker.on("completed", (job) => {
+compressWorker.on("completed", (job: Job<CompressJobType>) => {
   console.log(`✅ Job ${job.id} completed`);
 });
 
