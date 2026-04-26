@@ -13,7 +13,9 @@ export default function ConvertPage() {
   const [file, setFile] = useState<File | null>(null);
   const [quality, setQuality] = useState("medium");
   const [loading, setLoading] = useState(false);
+  const [processing, setProcessing] = useState(false);
   const cloudinaryCloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
   const error = (msg: string) => toast.error(msg);
   const success = (msg: string) => toast.success(msg);
 
@@ -65,6 +67,71 @@ export default function ConvertPage() {
     }
 
     return data.jobId;
+  }
+
+  async function waitForJobCompletion(jobId: string, token: string) {
+    if (!backendUrl) {
+      throw new Error("Missing NEXT_PUBLIC_BACKEND_URL");
+    }
+
+    const maxAttempts = 90;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const response = await fetch(`${backendUrl}/api/jobs/${jobId}/status`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload?.message || "Failed to fetch job status");
+      }
+
+      if (payload?.state === "completed") {
+        return;
+      }
+
+      if (payload?.state === "failed") {
+        throw new Error(payload?.failedReason || "Job failed");
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+
+    throw new Error("Compression timed out. Please try again.");
+  }
+
+  async function downloadProcessedFile(jobId: string, token: string) {
+    if (!backendUrl) {
+      throw new Error("Missing NEXT_PUBLIC_BACKEND_URL");
+    }
+
+    const response = await fetch(`${backendUrl}/api/jobs/${jobId}/download`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null);
+      throw new Error(payload?.message || "Failed to download processed file");
+    }
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const contentDisposition = response.headers.get("Content-Disposition") || "";
+    const filenameMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+    const filename = filenameMatch?.[1] || `compressed-${jobId}.pdf`;
+
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
   }
 
   // 🚀 Upload function
@@ -123,13 +190,24 @@ export default function ConvertPage() {
 
       const jobId = await createJob(data.secure_url, "pdf", user.id, quality);
 
+      const token = await getToken();
+      if (!token) {
+        throw new Error("Failed to get auth token. Please sign in again.");
+      }
+
+      setProcessing(true);
       success(`File uploaded and job queued: ${jobId}`);
+
+      await waitForJobCompletion(jobId, token);
+      await downloadProcessedFile(jobId, token);
+      success("Compression completed. Download started.");
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Something went wrong";
       error(message);
     } finally {
       setLoading(false);
+      setProcessing(false);
     }
   }
 
@@ -215,11 +293,11 @@ export default function ConvertPage() {
 
           {/* Submit Button */}
           <button
-            disabled={!file || loading}
+            disabled={!file || loading || processing}
             onClick={() => file && uploadToCloudinary(file)}
             className="mt-6 w-full cursor-pointer rounded-lg bg-gradient-to-br from-[#4cd7f6] to-[#4edea3] px-6 py-3 text-sm font-semibold text-[#003640] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {loading ? "Uploading..." : "Compress Now"}
+            {loading ? "Uploading..." : processing ? "Processing..." : "Compress Now"}
           </button>
         </section>
       </main>
