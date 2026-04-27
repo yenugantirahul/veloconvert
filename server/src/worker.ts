@@ -1,13 +1,16 @@
 import "dotenv/config";
 import { Job, Worker } from "bullmq";
+import { randomUUID } from "crypto";
+import { mkdir, rm, stat, writeFile } from "fs/promises";
+import path from "path";
+import { tmpdir } from "os";
+import { PDFDocument } from "pdf-lib";
 import { CompressJobType } from "./config/upstash";
 import { upstashConnection } from "./config/upstash";
 
 type CompressionResult = {
   success: boolean;
-  server: string;
-  task: string;
-  status: string;
+  outputPath: string;
   downloadFilename: string | null;
   inputBytes: number | null;
   outputBytes: number | null;
@@ -15,7 +18,7 @@ type CompressionResult = {
 };
 
 function resolveCompressionLevel(
-  quality?: string
+  quality?: string,
 ): "low" | "recommended" | "extreme" {
   switch ((quality || "").toLowerCase()) {
     case "high":
@@ -28,90 +31,75 @@ function resolveCompressionLevel(
   }
 }
 
-type StartResponse = {
-  server: string;
-  task: string;
+type CompressionProfile = {
+  saveOptions: {
+    useObjectStreams: boolean;
+  };
+  stripMetadata: boolean;
 };
 
-type UploadResponse = {
-  server_filename: string;
-  filename?: string;
-};
-
-type ProcessResponse = {
-  status: string;
-  download_filename?: string;
-  filesize?: number;
-  output_filesize?: number;
-};
-
-function resolveIlovePdfPublicKey(): string {
-  const key =
-    process.env.ILOVEPDF_PUBLIC_KEY ||
-    process.env.ILOVEPDF_PROJECT_PUBLIC_KEY ||
-    process.env.ILOVEPDF_API_PUBLIC_KEY ||
-    process.env.ILOVEPDF_KEY;
-
-  if (!key) {
-    throw new Error(
-      "Missing iLovePDF key. Set one of: ILOVEPDF_PUBLIC_KEY, ILOVEPDF_PROJECT_PUBLIC_KEY, ILOVEPDF_API_PUBLIC_KEY, ILOVEPDF_KEY."
-    );
+function resolveCompressionProfile(quality?: string): CompressionProfile {
+  switch ((quality || "").toLowerCase()) {
+    case "high":
+      return {
+        saveOptions: { useObjectStreams: true },
+        stripMetadata: false,
+      };
+    case "low":
+      return {
+        saveOptions: { useObjectStreams: true },
+        stripMetadata: true,
+      };
+    case "medium":
+    default:
+      return {
+        saveOptions: { useObjectStreams: true },
+        stripMetadata: true,
+      };
   }
-
-  const normalized = key.trim();
-
-  if (normalized.toLowerCase().startsWith("secret_key_")) {
-    throw new Error(
-      "ILOVEPDF_PUBLIC_KEY is using a secret key value. Use the iLovePDF Project Public Key for /v1/auth."
-    );
-  }
-
-  return normalized;
 }
 
-async function requestJson<T>(
-  url: string,
-  init: RequestInit,
-  fallbackError: string
-): Promise<T> {
-  const response = await fetch(url, init);
+function resolveJobName(job: Job<CompressJobType>): string {
+  return String(job.id || randomUUID()).replace(/[^a-zA-Z0-9_-]/g, "_");
+}
 
-  const text = await response.text();
-  let payload: any = null;
-  if (text) {
-    try {
-      payload = JSON.parse(text);
-    } catch {
-      payload = null;
-    }
-  }
+async function downloadPdf(inputUrl: string, inputPath: string): Promise<number> {
+  const response = await fetch(inputUrl);
 
   if (!response.ok) {
-    const msg =
-      payload?.message ||
-      payload?.error?.message ||
-      payload?.type ||
-      payload?.error?.type ||
-      payload?.param ||
-      `${fallbackError} (${response.status})`;
-    throw new Error(msg);
+    throw new Error(`Failed to download input PDF (${response.status})`);
   }
 
-  return payload as T;
+  const arrayBuffer = await response.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  await writeFile(inputPath, buffer);
+
+  return buffer.length;
 }
 
-async function getIloverPdfToken(publicKey: string): Promise<string> {
-  const payload = await requestJson<{ token: string }>(
-    "https://api.ilovepdf.com/v1/auth",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ public_key: publicKey }),
-    },
-    "Failed to authenticate with iLovePDF"
+async function compressPdfWithLibrary(
+  inputPath: string,
+  outputPath: string,
+  profile: CompressionProfile,
+): Promise<void> {
+  const inputBytes = await import("fs/promises").then(({ readFile }) =>
+    readFile(inputPath),
   );
+  const pdfDoc = await PDFDocument.load(inputBytes, {
+    updateMetadata: false,
+  });
 
-  return payload.token;
+  if (profile.stripMetadata) {
+    pdfDoc.setTitle("");
+    pdfDoc.setAuthor("");
+    pdfDoc.setSubject("");
+    pdfDoc.setKeywords([]);
+    pdfDoc.setCreator("");
+    pdfDoc.setProducer("");
+  }
+
+  const outputBytes = await pdfDoc.save(profile.saveOptions);
+  await writeFile(outputPath, outputBytes);
 }
 
 // Create Worker
@@ -122,69 +110,36 @@ const compressWorker = new Worker(
     const { inputUrl, inputFormat, quality } = job.data;
 
     if (inputFormat.toLowerCase() !== "pdf") {
-      throw new Error(`Unsupported format: ${inputFormat}. Only PDF is supported.`);
+      throw new Error(
+        `Unsupported format: ${inputFormat}. Only PDF is supported.`,
+      );
     }
 
-    const publicKey = resolveIlovePdfPublicKey();
-    const token = await getIloverPdfToken(publicKey);
-
-    const start = await requestJson<StartResponse>(
-      "https://api.ilovepdf.com/v1/start/compress",
-      {
-        method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
-      },
-      "Failed to start iLovePDF compression task"
-    );
-
-    const upload = await requestJson<UploadResponse>(
-      `https://${start.server}/v1/upload`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          task: start.task,
-          cloud_file: inputUrl,
-        }),
-      },
-      "Failed to upload source file to iLovePDF"
-    );
-
+    const jobName = resolveJobName(job);
+    const workspace = path.join(tmpdir(), "veloconvert", "compress");
+    const inputPath = path.join(workspace, `${jobName}-input.pdf`);
+    const outputPath = path.join(workspace, `${jobName}-output.pdf`);
     const compressionLevel = resolveCompressionLevel(quality);
-    const processResult = await requestJson<ProcessResponse>(
-      `https://${start.server}/v1/process`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          task: start.task,
-          tool: "compress",
-          files: [
-            {
-              server_filename: upload.server_filename,
-              filename: upload.filename || "input.pdf",
-            },
-          ],
-          compression_level: compressionLevel,
-        }),
-      },
-      "Failed to process compression task with iLovePDF"
-    );
+    const compressionProfile = resolveCompressionProfile(quality);
+
+    await mkdir(workspace, { recursive: true });
+
+    const inputBytes = await downloadPdf(inputUrl, inputPath);
+
+    try {
+      await compressPdfWithLibrary(inputPath, outputPath, compressionProfile);
+    } finally {
+      await rm(inputPath, { force: true });
+    }
+
+    const outputStats = await stat(outputPath);
 
     return {
-      success: processResult.status === "TaskSuccess" || processResult.status === "TaskSuccessWithWarnings",
-      server: start.server,
-      task: start.task,
-      status: processResult.status,
-      downloadFilename: processResult.download_filename ?? null,
-      inputBytes: processResult.filesize ?? null,
-      outputBytes: processResult.output_filesize ?? null,
+      success: true,
+      outputPath,
+      downloadFilename: `compressed-${jobName}.pdf`,
+      inputBytes,
+      outputBytes: outputStats.size,
       compressionLevel,
     };
   },
@@ -200,6 +155,9 @@ compressWorker.on("completed", (job: Job<CompressJobType>) => {
   console.log(`✅ Job ${job.id} completed`);
 });
 
-compressWorker.on("failed", (job: Job<CompressJobType> | undefined, err: Error) => {
-  console.log(`❌ Job ${job?.id} failed:`, err.message);
-});
+compressWorker.on(
+  "failed",
+  (job: Job<CompressJobType> | undefined, err: Error) => {
+    console.log(`❌ Job ${job?.id} failed:`, err.message);
+  },
+);

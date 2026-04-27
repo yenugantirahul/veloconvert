@@ -4,35 +4,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
+const promises_1 = require("fs/promises");
 const upstash_1 = require("../config/upstash");
 const supabase_1 = require("../config/supabase");
 const router = express_1.default.Router();
 const jobsTable = process.env.SUPABASE_JOBS_TABLE || "jobs";
-async function requestIloverPdfToken(publicKey) {
-    const response = await fetch("https://api.ilovepdf.com/v1/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ public_key: publicKey }),
-    });
-    if (!response.ok) {
-        throw new Error(`Failed to authenticate with iLovePDF (${response.status})`);
-    }
-    const payload = (await response.json());
-    if (!payload?.token) {
-        throw new Error("Missing token in iLovePDF auth response.");
-    }
-    return payload.token;
-}
-function resolveIloverPdfPublicKey() {
-    const key = process.env.ILOVEPDF_PUBLIC_KEY ||
-        process.env.ILOVEPDF_PROJECT_PUBLIC_KEY ||
-        process.env.ILOVEPDF_API_PUBLIC_KEY ||
-        process.env.ILOVEPDF_KEY;
-    if (!key) {
-        throw new Error("Missing iLovePDF key. Set one of: ILOVEPDF_PUBLIC_KEY, ILOVEPDF_PROJECT_PUBLIC_KEY, ILOVEPDF_API_PUBLIC_KEY, ILOVEPDF_KEY.");
-    }
-    return key.trim();
-}
 router.post("/create", async (req, res) => {
     try {
         const { uId, inFormat, inUrl, quality } = req.body;
@@ -103,7 +79,7 @@ router.get("/:jobId/status", async (req, res) => {
             state,
             result,
             failedReason: job.failedReason || null,
-            downloadUrl: state === "completed" && result?.server && result?.task
+            downloadUrl: state === "completed" && result?.outputPath
                 ? `/api/jobs/${jobId}/download`
                 : null,
         });
@@ -140,33 +116,20 @@ router.get("/:jobId/download", async (req, res) => {
             });
         }
         const result = (job.returnvalue || null);
-        if (!result?.server || !result?.task) {
+        if (!result?.outputPath) {
             return res.status(500).json({
                 message: "Download metadata missing from job result",
             });
         }
-        const publicKey = resolveIloverPdfPublicKey();
-        const token = await requestIloverPdfToken(publicKey);
-        const fileResponse = await fetch(`https://${result.server}/v1/download/${result.task}`, {
-            method: "GET",
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        });
-        if (!fileResponse.ok) {
-            return res.status(502).json({
-                message: "Failed to fetch file from iLovePDF",
-                statusCode: fileResponse.status,
-            });
-        }
-        const arrayBuffer = await fileResponse.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
+        const buffer = await (0, promises_1.readFile)(result.outputPath);
         const fallbackFilename = `compressed-${jobId}.pdf`;
         const filename = result.downloadFilename || fallbackFilename;
-        res.setHeader("Content-Type", fileResponse.headers.get("content-type") || "application/pdf");
+        res.setHeader("Content-Type", "application/pdf");
         res.setHeader("Content-Length", buffer.length.toString());
         res.setHeader("Content-Disposition", `attachment; filename=\"${filename}\"`);
-        return res.status(200).send(buffer);
+        const response = res.status(200).send(buffer);
+        (0, promises_1.rm)(result.outputPath, { force: true }).catch(() => undefined);
+        return response;
     }
     catch (err) {
         const message = err instanceof Error ? err.message : "Unknown server error";
