@@ -39,11 +39,17 @@ Object.defineProperty(exports, "__esModule", { value: true });
 require("dotenv/config");
 const bullmq_1 = require("bullmq");
 const crypto_1 = require("crypto");
+const fs_1 = require("fs");
 const promises_1 = require("fs/promises");
 const path_1 = __importDefault(require("path"));
+const promises_2 = require("stream/promises");
+const stream_1 = require("stream");
 const os_1 = require("os");
 const pdf_lib_1 = require("pdf-lib");
 const upstash_1 = require("./config/upstash");
+const JOB_FETCH_TIMEOUT_MS = parseInt(process.env.JOB_FETCH_TIMEOUT_MS || "60000", 10);
+const MAX_INPUT_BYTES = parseInt(process.env.MAX_INPUT_PDF_BYTES || "52428800", 10); // 50 MB
+const WORKER_CONCURRENCY = parseInt(process.env.WORKER_CONCURRENCY || "2", 10);
 function resolveCompressionLevel(quality) {
     switch ((quality || "").toLowerCase()) {
         case "high":
@@ -79,14 +85,45 @@ function resolveJobName(job) {
     return String(job.id || (0, crypto_1.randomUUID)()).replace(/[^a-zA-Z0-9_-]/g, "_");
 }
 async function downloadPdf(inputUrl, inputPath) {
-    const response = await fetch(inputUrl);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), JOB_FETCH_TIMEOUT_MS);
+    let response;
+    try {
+        response = await fetch(inputUrl, { signal: controller.signal });
+    }
+    finally {
+        clearTimeout(timeoutId);
+    }
     if (!response.ok) {
         throw new Error(`Failed to download input PDF (${response.status})`);
     }
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    await (0, promises_1.writeFile)(inputPath, buffer);
-    return buffer.length;
+    const contentLength = response.headers.get("content-length");
+    if (contentLength && parseInt(contentLength, 10) > MAX_INPUT_BYTES) {
+        throw new Error(`Input PDF exceeds maximum allowed size of ${MAX_INPUT_BYTES} bytes`);
+    }
+    if (!response.body) {
+        throw new Error("Response body is empty");
+    }
+    let bytesWritten = 0;
+    const fileStream = (0, fs_1.createWriteStream)(inputPath);
+    const sizeGuard = new stream_1.Transform({
+        transform(chunk, _enc, cb) {
+            bytesWritten += chunk.length;
+            if (bytesWritten > MAX_INPUT_BYTES) {
+                cb(new Error(`Input PDF exceeds maximum allowed size of ${MAX_INPUT_BYTES} bytes`));
+                return;
+            }
+            cb(null, chunk);
+        },
+    });
+    try {
+        await (0, promises_2.pipeline)(stream_1.Readable.fromWeb(response.body), sizeGuard, fileStream);
+    }
+    catch (err) {
+        await (0, promises_1.rm)(inputPath, { force: true });
+        throw err;
+    }
+    return bytesWritten;
 }
 async function compressPdfWithLibrary(inputPath, outputPath, profile) {
     const inputBytes = await Promise.resolve().then(() => __importStar(require("fs/promises"))).then(({ readFile }) => readFile(inputPath));
@@ -135,7 +172,9 @@ const compressWorker = new bullmq_1.Worker("compress", async (job) => {
     };
 }, {
     connection: upstash_1.upstashConnection,
-    concurrency: 5,
+    concurrency: WORKER_CONCURRENCY,
+    removeOnComplete: { age: 3600 },
+    removeOnFail: { age: 86400, count: 50 },
 });
 console.log("Worker initialized for queue: compress");
 compressWorker.on("completed", (job) => {
