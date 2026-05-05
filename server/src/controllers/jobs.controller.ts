@@ -49,6 +49,11 @@ export const createJob = async (req: Request, res: Response) => {
       inputUrl: inUrl,
       inputFormat: inFormat,
       quality,
+    }, {
+      attempts: 3,
+      backoff: { type: "exponential", delay: 2000 },
+      removeOnComplete: { age: 3600 },
+      removeOnFail: { age: 86400, count: 50 },
     });
 
     return res.status(201).json({
